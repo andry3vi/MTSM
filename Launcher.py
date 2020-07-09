@@ -2,6 +2,7 @@ from screenutils import list_screens, Screen
 import argparse
 import time
 import zmq
+import os
 
 
 def get_parser():
@@ -34,7 +35,7 @@ def get_parser():
 
 def main():
 
-    FolderCMD = '/home/andrea/Repository/233Usimulation/Multi_Thread_Simulation_Manager'
+    FolderCMD = os.getcwd()
     # Getting parser
     args, parser = get_parser()
 
