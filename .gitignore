@@ -1,5 +1,6 @@
-## Binary directory
+## Binary and Simulation directory
 bin/
+*_SIMU*
 
 ## user defined temporary files
 *_tmp*

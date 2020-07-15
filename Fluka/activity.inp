@@ -1,0 +1,30 @@
+TITLE
+------------------------------------- INDUCED ACTIVITY ---------------------------------------------------------
+* Set the defaults for precision simulations
+DEFAULTS                                                              PRECISIO
+* Define the beam characteristics
+BEAM           -0.07                                                  PROTON
+* Define the beam position
+BEAMPOS          0.0       0.0      -20.
+GEOBEGIN                                                              COMBNAME
+    0    0
+SPH blkbody    0.0 0.0 0.0 100000.
+SPH void       0.0 0.0 0.0 10000.
+RCC target     0.0 0.0 0.0 0.0 0.0 0.8 5.
+END
+BLKBODY      5 +blkbody  -void
+VOID         5 +void -target
+TARGET       5 +target
+END
+GEOEND
+MATERIAL         92.   238.029     18.97                          238.URANIUM
+LOW-MAT      URANIUM       92.      238.      296.                    238-U
+ASSIGNMA    BLCKHOLE   BLKBODY
+ASSIGNMA      VACUUM      VOID
+ASSIGNMA     URANIUM    TARGET
+* ** Radioactivity study *****
+FREE
+PHYSICS   , 3.,  , , , , ,EVAPORAT
+RESNUCLE  , 3., -22., , , TARGET, ,
+START     , 1000000., , , , 1.
+STOP
