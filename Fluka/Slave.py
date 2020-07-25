@@ -156,14 +156,14 @@ def main():
         change_energy('simu_fixed.inp',np.round(int(jobs['status'])/1000.0,6))
 
         # Run the new simulation
-        os.system('$FLUPRO/flutil/rfluka -N 0 -M 1 simu_fixed.inp')
+        os.system('$FLUPRO/flutil/rfluka  simu_fixed.inp')
 
 
 
         create_cmd_buffer(22)
 
         os.system('$FLUPRO/flutil/usrsuw < buffer.txt')
-    
+
         os.system('rm -v *.err *.out')
         os.chdir('../')
         time.sleep(5)

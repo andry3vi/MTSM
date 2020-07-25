@@ -23,6 +23,11 @@ def get_parser():
                         type=str,
                         help='Talys simulation folder')
 
+    parser.add_argument('-Fluka',
+                        dest='Flukafolder',
+                        type=str,
+                        help='Fluka simulation folder')
+
     parser.add_argument('-PACE',
                         dest='PACEfolder',
                         type=str,
@@ -149,6 +154,37 @@ def PACE_recExtractor(SimulationDIR):
                         recData[IsoKey][Energy].append(line[4])
 
     return recData
+
+def Fluka_rpExtractor(SimulationDIR):
+
+    rpData = dict()
+    #conversionfactor = 0.385469 # conv for 238U 0.8cm thick
+    conversionfactor = 2.40918e-06 # conv for 238U 0.000005cm thick
+    for folder in tqdm(os.listdir(SimulationDIR)):
+        if ( folder.find('Energy_') != -1 ) :
+            #print('------',folder,'------')
+            Energy = '{:03d}'.format(int(folder[7:]))
+            for output in os.listdir(SimulationDIR+'/'+folder):
+                if ( output.find('_tab.lis') != -1 ) :
+                    with open(SimulationDIR+'/'+folder+'/'+output,'r') as file:
+                        continueflag = True
+                        for line in file.readlines():
+                            if (line.find('# A/Z Isotopes:')!= -1) :
+                                continueflag = False
+                                continue
+                            if (continueflag) : continue
+
+                            data = line.split()
+                            IsoKey = '{:03d}'.format(int(data[1]))+'{:03d}'.format(int(data[0]))
+                            if (float(data[2])/conversionfactor > 0.001 and int(data[0]) > 200) :
+
+                                if (rpData.get(IsoKey) == None) :
+                                    rpData[IsoKey] = [ [int(Energy)],[float(data[2])/conversionfactor] ]
+                                else:
+                                    rpData[IsoKey][0].append(int(Energy))
+                                    rpData[IsoKey][1].append(float(data[2])/conversionfactor)
+    #print(rpData)
+    return rpData
 
 def EXFOR_Extractor(DIR):
 
@@ -279,9 +315,11 @@ def clear():
 def menu():
         strs = ('Enter 1 for plotting Segre production charts\n'
                 'Enter 2 for plotting EXFOR data comparison\n'
-                'Enter 3 for plotting Simulated production Cross Sections\n'
-                'Enter 4 for plotting Recoil spectra\n'
-                'Enter 5 to exit : ')
+                'Enter 3 for plotting Simulated production Cross Sections comparison\n'
+                'Enter 4 for plotting Simulated production Cross Sections CODE separated\n'
+                'Enter 5 for plotting Recoil spectra\n'
+                'Enter 6 for sorting production cross section\n'
+                'Enter 7 to exit : ')
         choice = input(strs)
         return int(choice)
 
@@ -296,6 +334,7 @@ def main():
 
     #-----Define data containers-----#
     rpTalysData = dict()
+    rpFlukaData = dict()
     rpPACEData = dict()
     rpEXFORData = dict()
 
@@ -305,6 +344,12 @@ def main():
         rpTalysData = Talys_rpExtractor(args.Talysfolder)
     else:
         print(colored('WARNING :', 'yellow'), ' Talys Data not provided')
+
+    if args.Flukafolder is not None:
+        print('--Sorting ',colored('Fluka', 'green'),' Data--')
+        rpFlukaData = Fluka_rpExtractor(args.Flukafolder)
+    else:
+        print(colored('WARNING :', 'yellow'), ' Fluka Data not provided')
 
     if args.PACEfolder is not None:
         print('--Sorting ',colored('PACE4', 'green'),' Data--')
@@ -346,12 +391,18 @@ def main():
                 os.system('rm -r '+args.Outfolder+"/SEGRESIM")
                 os.mkdir(args.Outfolder+"/SEGRESIM")
 
+            if args.Flukafolder is not None:
+                os.mkdir(args.Outfolder+"/SEGRESIM/Fluka")
+                segreplotter(args.Outfolder,'Fluka',rpFlukaData)
+
             if args.Talysfolder is not None:
                 os.mkdir(args.Outfolder+"/SEGRESIM/Talys")
                 segreplotter(args.Outfolder,'Talys',rpTalysData)
+
             if args.PACEfolder is not None:
                 os.mkdir(args.Outfolder+"/SEGRESIM/PACE")
                 segreplotter(args.Outfolder,'PACE',rpPACEData)
+
 
         elif choice == 2:
             clear()
@@ -360,6 +411,7 @@ def main():
             EXFORauthorList = []
             EXFORIsokeyList = []
             TalyskeyList    = []
+            FlukakeyList    = []
             PACEkeyList     = []
             CN = ''
             while True:
@@ -372,6 +424,12 @@ def main():
                 TalyskeyList = keysorter(rpTalysData)
             else:
                 print(colored('ERROR :', 'red'), ' Talys Data not provided')
+                raise SystemExit
+
+            if args.Flukafolder is not None:
+                FlukakeyList = keysorter(rpFlukaData)
+            else:
+                print(colored('ERROR :', 'red'), ' Fluka Data not provided')
                 raise SystemExit
 
             if args.PACEfolder is not None:
@@ -395,12 +453,18 @@ def main():
                 raise SystemExit
 
 
+
             CommonIsoKeyEXP = []
             for key in rpPACEData.keys():
                 if key in rpTalysData:
-                    if key in EXFORIsokeyList:
-                        CommonIsoKeyEXP.append(key)
-
+                    if key in rpFlukaData:
+                        if key in EXFORIsokeyList:
+                            CommonIsoKeyEXP.append(key)
+            # print(PACEkeyList)
+            print(TalyskeyList)
+            print(FlukakeyList)
+            # print(CommonIsoKeyEXP)
+            input('wait')
             CommonIsoKeyEXP.sort()
             try:
                 os.mkdir(args.Outfolder+"/EXPSIM")
@@ -420,10 +484,13 @@ def main():
                 #sorting
                 X1, Y1 = listsorter(rpPACEData[key][0], rpPACEData[key][1])
                 X2, Y2 = listsorter(rpTalysData[key][0], rpTalysData[key][1])
+                X3, Y3 = listsorter(rpFlukaData[key][0], rpFlukaData[key][1])
 
                 plt.figure()
                 plt.plot(X1,Y1,label='PACE4',marker = 'o', ms = 3, color = 'green',linestyle = 'None')
                 plt.plot(X2,Y2,label='Talys',marker = 'o', ms = 3, color = 'orange',linestyle = 'None')
+                plt.plot(X3,Y3,label='Fluka',marker = 'o', ms = 3, color = 'red',linestyle = 'None')
+
 
 
                 Title =  str(int(CN[3:6])-int(key[3:6]))+' evaporated neutrons'
@@ -439,7 +506,6 @@ def main():
                 #plt.show()
                 plt.savefig(outfile,dpi = 300)
                 plt.close()
-
 
         elif choice == 3:
             clear()
@@ -461,6 +527,12 @@ def main():
                 print(colored('ERROR :', 'red'), ' Talys Data not provided')
                 raise SystemExit
 
+            if args.Flukafolder is not None:
+                FlukakeyList = keysorter(rpFlukaData)
+            else:
+                print(colored('ERROR :', 'red'), ' Fluka Data not provided')
+                raise SystemExit
+
             if args.PACEfolder is not None:
                 PACEkeyList = keysorter(rpPACEData)
             else:
@@ -475,13 +547,15 @@ def main():
                     print(colored('WARNING :', 'yellow')," Wrong CN format")
                 for key in rpPACEData.keys():
                     if key in rpTalysData.keys():
-                        if key[0:3] == CN[0:3]:
-                            CommonIsoKey.append(key)
+                        if key in rpFlukaData.keys():
+                            if key[0:3] == CN[0:3]:
+                                CommonIsoKey.append(key)
 
             elif (subchoice == 'all'):
                 for key in rpPACEData.keys():
                     if key in rpTalysData.keys():
-                        CommonIsoKey.append(key)
+                        if key in rpFlukaData.keys():
+                            CommonIsoKey.append(key)
             elif (len(subchoice) == 6):
                 CommonIsoKey.append(subchoice)
 
@@ -497,10 +571,12 @@ def main():
                 #sorting
                 X1, Y1 = listsorter(rpPACEData[key][0], rpPACEData[key][1])
                 X2, Y2 = listsorter(rpTalysData[key][0], rpTalysData[key][1])
+                X3, Y3 = listsorter(rpFlukaData[key][0], rpFlukaData[key][1])
 
                 plt.figure()
                 plt.plot(X1,Y1,label='PACE4',marker = 'o', ms = 3, color = 'green',linestyle = 'None')
                 plt.plot(X2,Y2,label='Talys',marker = 'o', ms = 3, color = 'orange',linestyle = 'None')
+                plt.plot(X3,Y3,label='Fluka',marker = 'o', ms = 3, color = 'red',linestyle = 'None')
                 if (subchoice == 'n'):
                     Title =  str(int(CN[3:6])-int(key[3:6]))+' evaporated neutrons'
                     plt.title(Title)
@@ -514,6 +590,109 @@ def main():
                 plt.close()
 
         elif choice == 4:
+            clear()
+            print(ascii_banner)
+            subchoice = ''
+            CN = ''
+            CommonIsoKey = []
+            SimuChoice = ''
+            ISO1 = ''
+            ISO2 = ''
+            IsoKey = []
+            while True:
+                subchoice = input('Enter 1 for Talys\nEnter 2 for PACE\nEnter 3 for Fluka : ')
+                if (subchoice == '1' or subchoice == '2' or subchoice == '3'): break
+                print(colored('WARNING :', 'yellow')," Wrong choice format")
+
+
+            while True:
+                ISO1 = input('Insert lower range limit [ZZZAAA] : ')
+                if (len(ISO1) == 6): break
+                print(colored('WARNING :', 'yellow')," Wrong Isotope format")
+            while True:
+                ISO2 = input('Insert top range limit [ZZZAAA] : ')
+                if (len(ISO2) == 6): break
+                print(colored('WARNING :', 'yellow')," Wrong Isotope format")
+
+
+
+            try:
+                os.mkdir(args.Outfolder+'/SIM')
+            except:
+                print(colored('WARNING :', 'yellow')," Simulation plot already exist. Content will be replaced")
+
+
+            #-----sort produced istopes-----#
+            if subchoice == '1':
+                if args.Talysfolder is not None:
+                    CommonIsoKey = keysorter(rpTalysData)
+                    SimuChoice = 'Talys'
+                else:
+                    print(colored('ERROR :', 'red'), ' Talys Data not provided')
+                    raise SystemExit
+
+            elif subchoice == '2':
+                if args.PACEfolder is not None:
+                    CommonIsoKey = keysorter(rpPACEData)
+                    SimuChoice = 'PACE'
+                else:
+                    print(colored('ERROR :', 'red'), ' PACE Data not provided')
+                    raise SystemExit
+
+            elif subchoice == '3':
+                if args.Flukafolder is not None:
+                    CommonIsoKey = keysorter(rpFlukaData)
+                    SimuChoice = 'Fluka'
+                else:
+                    print(colored('ERROR :', 'red'), ' Fluka Data not provided')
+                    raise SystemExit
+
+            for Z in range(int(ISO1[0:3]),int(ISO2[0:3])+1,1):
+                for A in range(int(ISO1[3:6]),int(ISO2[3:6])+1,1):
+                    Key = '{:03d}'.format(Z)+'{:03d}'.format(A)
+                    if (Key in CommonIsoKey): IsoKey.append(Key)
+
+
+            try:
+                os.mkdir(args.Outfolder+'/SIM/'+SimuChoice)
+            except:
+                print(colored('WARNING :', 'yellow')," Simulation folder already exist. Content will be deleted")
+            finally:
+                os.system('rm -r '+args.Outfolder+'/SIM/'+SimuChoice)
+                os.mkdir(args.Outfolder+'/SIM/'+SimuChoice)
+
+            for key in IsoKey:
+                print('------Plotting ',SimuChoice,' production Cross Section for ',key,'------')
+
+                outfile = args.Outfolder+'/SIM/'+SimuChoice+'/'+key+'.png'
+                plt.figure()
+                #sorting
+                X = []
+                Y = []
+                if subchoice == '1':
+                    X, Y = listsorter(rpTalysData[key][0], rpTalysData[key][1])
+
+                elif subchoice == '2':
+                    X, Y = listsorter(rpPACEData[key][0], rpPACEData[key][1])
+
+                elif subchoice == '3':
+                    X, Y = listsorter(rpFlukaData[key][0], rpFlukaData[key][1])
+
+
+
+                plt.figure()
+                plt.plot(X,Y,label=SimuChoice,marker = 'o', ms = 3, color = 'green',linestyle = 'None')
+
+                plt.legend()
+                plt.xlabel("Energy [MeV]")
+                plt.ylabel("Cross Section [mb]")
+                plt.xlim((10,150))
+                plt.yscale('log')
+                #plt.show()
+                plt.savefig(outfile,dpi = 300)
+                plt.close()
+
+        elif choice == 5:
             clear()
             print(ascii_banner)
             #-----retrieve recoil information-----#
@@ -686,209 +865,48 @@ def main():
                     plt.savefig(outfile,dpi = 300)
                     plt.close()
 
+        elif choice == 6:
+            clear()
+            print(ascii_banner)
+
+            IsoKey = []
+
+            if args.Talysfolder is not None:
+                IsoKey = keysorter(rpTalysData)
+
+            else:
+                print(colored('ERROR :', 'red'), ' Talys Data not provided')
+                raise SystemExit
+
+            try:
+                os.mkdir(args.Outfolder+'/ISOLIST/')
+            except:
+                print(colored('WARNING :', 'yellow'),"IsoKey list folder already exist. Content will be deleted")
+            finally:
+                os.system('rm -r '+args.Outfolder+'/ISOLIST/')
+                os.mkdir(args.Outfolder+'/ISOLIST/')
+
+            with open(args.Outfolder+'/ISOLIST/ProductionList.txt','w') as file:
+                for E in range(10,150,5):
+                    xsec = []
+                    isokeys = []
+                    for key in IsoKey:
+                        if E in rpTalysData[key][0]:
+                            index = rpTalysData[key][0].index(E)
+                            xsec.append(rpTalysData[key][1][index])
+                            isokeys.append(key)
+                    sort = listsorter(xsec,isokeys)
+                    file.write('# Energy -> {:03d} \n'.format(int(E)))
+                    for i in range(len(sort[0])):
+                        file.write(str(sort[0][i])+' '+str(sort[1][i]+'\n'))
 
 
 
-
-
-
-        elif choice == 5:
+        elif choice == 7:
             clear()
             break
 
-    # recTalysData = Talys_recExtractor(args.Talysfolder)
-    #
-    #
-    # #-----sort PACE produced istopes-----#
-    # PACEkeyList = []
-    # for key in rpPACEData.keys():
-    #     PACEkeyList.append(key)
-    #
-    # PACEkeyList.sort()
-    #
-    # PACEBIN = edgefinder(PACEkeyList)
-    #
-    #
-    # #-----sort Talys produced istopes-----#
-    # TalyskeyList = []
-    # for key in rpTalysData.keys():
-    #     TalyskeyList.append(key)
-    #
-    # TalyskeyList.sort()
-    #
-    # TalysBIN = edgefinder(TalyskeyList)
-    #
-    # #-----sort EXFOR experimental measured isotopes-----#
-    # EXFORauthorList = []
-    # EXFORIsokeyList = []
-    # for key in rpEXFORData.keys():
-    #     EXFORauthorList.append(key)
-    #     for isokey in rpEXFORData[key].keys():
-    #         if (isokey in EXFORIsokeyList): continue
-    #         else: EXFORIsokeyList.append(isokey)
-    #
-    # EXFORauthorList.sort()
-    # EXFORIsokeyList.sort()
-    #
-    # CommonIsoKey = []
-    # for key in rpPACEData.keys():
-    #     if key in rpTalysData:
-    #         CommonIsoKey.append(key)
-    #
-    # CommonIsoKey.sort()
-    #
-    # CommonIsoKeyEXP = []
-    # for key in rpPACEData.keys():
-    #     if key in rpTalysData:
-    #         if key in EXFORIsokeyList:
-    #             CommonIsoKeyEXP.append(key)
-    #
-    # CommonIsoKeyEXP.sort()
-    #
-    # # ----make output directory for comparison
-    # directory_name = args.Outfolder
-    # try:
-    #     os.mkdir(directory_name)
-    # except:
-    #     print("Warning:",directory_name,"Already exist. All content will be deleted.")
-    #     print()
-    # finally:
-    #     os.system('rm -r '+directory_name)
-    #     os.mkdir(directory_name)
-    # #-----------printing recoil spectra------------------------
-    # print('-------Drawing recoil spectra for the following isotopes-------')
-    #
-    # os.mkdir(directory_name+"/RECSIM")
-    #
-    # for isokey in recTalysData.keys():
-    #     for energykey in recTalysData[isokey].keys():
-    #         outfile = directory_name+'/RECSIM/rec'+isokey+'e'+energykey+'.png'
-    #         print('Recoil -> '+isokey+' Energy -> '+energykey)
-    #         #sorting
-    #         X1, Y1 = sorter(recTalysData[isokey][energykey][0], recTalysData[isokey][energykey][1])
-    #
-    #         plt.figure()
-    #         plt.plot(X1,Y1,label='Talys',marker = 'o', ms = 3, color = 'green',linestyle = 'None')
-    #         El = element(int(isokey[0:3]))
-    #         Title = isokey[3:6]+El.symbol+' recoil. \n p energy = '+energykey+' MeV'
-    #         plt.title(Title)
-    #         plt.xlabel("Energy [MeV]")
-    #         plt.ylabel("Cross Section [mb]")
-    #         #plt.yscale('log')
-    #         #plt.show()
-    #         plt.savefig(outfile,dpi = 300)
-    #         plt.close()
-    #
-    #
-    # #-----------printing comparison with exp data--------------
-    # print('-------Drawing production cross sections for the following isotopes-------')
-    #
-    # os.mkdir(directory_name+"/EXPSIM")
-    #
-    # marker = itertools.cycle(('s', 'p', 'o'))
-    # color = itertools.cycle(('m', 'b'))
-    #
-    # for key in CommonIsoKeyEXP:
-    #     print(key)
-    #     outfile = directory_name+'/EXPSIM/'+key+'.png'
-    #     #sorting
-    #     X1, Y1 = sorter(rpPACEData[key][0], rpPACEData[key][1])
-    #     X2, Y2 = sorter(rpTalysData[key][0], rpTalysData[key][1])
-    #
-    #     plt.figure()
-    #     plt.plot(X1,Y1,label='PACE4',marker = 'o', ms = 3, color = 'green',linestyle = 'None')
-    #     plt.plot(X2,Y2,label='Talys',marker = 'o', ms = 3, color = 'orange',linestyle = 'None')
-    #
-    #
-    #     Title =  str(int(args.CN[3:6])-int(key[3:6]))+' evaporated neutrons'
-    #     plt.title(Title)
-    #     for author in rpEXFORData.keys():
-    #         if (key in rpEXFORData[author]):
-    #             plt.errorbar(rpEXFORData[author][key][0],rpEXFORData[author][key][1], yerr = rpEXFORData[author][key][2], label = author,marker = next(marker), color = next(color), ecolor='k', elinewidth=1, capsize=2,markersize = 2, linestyle = 'None' )
-    #     plt.legend()
-    #     plt.xlabel("Energy [MeV]")
-    #     plt.ylabel("Cross Section [mb]")
-    #     plt.xlim((10,150))
-    #     plt.yscale('log')
-    #     #plt.show()
-    #     plt.savefig(outfile,dpi = 300)
-    #     plt.close()
-    #
-    # #---------SEGRE PLOT
-    # os.mkdir(directory_name+"/SEGRESIM")
-    # os.mkdir(directory_name+"/SEGRESIM/PACE")
-    # os.mkdir(directory_name+"/SEGRESIM/Talys")
-    # # ----plotting segre plot for Talys--------
-    # print('plotting segre plot for Talys')
-    # for energy in range(20,140,5):
-    #
-    #     N, Z, W = histolister(rpTalysData,energy)
-    #     hist, xbins, ybins, im = plt.hist2d(N,Z,bins=TalysBIN, weights=W, cmap='autumn', norm=LogNorm(vmin=0.001, vmax=max(W)))
-    #
-    #     Title =  str(energy)+' MeV'
-    #     outfile = directory_name+'/SEGRESIM/Talys/Energy_'+str(energy)+'.png'
-    #
-    #     plt.title(Title)
-    #     plt.xlabel("N")
-    #     plt.ylabel("Z")
-    #
-    #
-    #     cbar = plt.colorbar()
-    #     cbar.set_label("Cross Section [mb]")
-    #     print('segree chart for energy -> ',energy)
-    #     for i in range(len(ybins)-1):
-    #         for j in range(len(xbins)-1):
-    #             El = element(int(ybins[i]+0.5))
-    #             label = str(int(xbins[j]+0.5+ybins[i]+0.5))+El.symbol
-    #             if(hist.T[i,j]): plt.text(xbins[j]+0.5,ybins[i]+0.5, label, color="k", ha="center", va="center",fontsize = 4)
-    #
-    #     plt.savefig(outfile,dpi = 300)
-    #     plt.close()
-    #
-    # # ----plotting segre plot for PACE--------
-    # print('plotting segre plot for PACE')
-    # for energy in range(20,140,5):
-    #
-    #     N, Z, W = histolister(rpPACEData,energy)
-    #     hist, xbins, ybins, im = plt.hist2d(N,Z,bins=PACEBIN, weights=W, cmap='autumn', norm=LogNorm(vmin=0.001, vmax=max(W)))
-    #
-    #     Title =  str(energy)+' MeV'
-    #     outfile = directory_name+'/SEGRESIM/PACE/Energy_'+str(energy)+'.png'
-    #
-    #     plt.title(Title)
-    #     plt.xlabel("N")
-    #     plt.ylabel("Z")
-    #
-    #
-    #     cbar = plt.colorbar()
-    #     cbar.set_label("Cross Section [mb]")
-    #     print('segree chart for energy -> ',energy)
-    #     for i in range(len(ybins)-1):
-    #         for j in range(len(xbins)-1):
-    #             El = element(int(ybins[i]+0.5))
-    #             label = str(int(xbins[j]+0.5+ybins[i]+0.5))+El.symbol
-    #             if(hist.T[i,j]): plt.text(xbins[j]+0.5,ybins[i]+0.5, label, color="k", ha="center", va="center",fontsize = 4)
-    #
-    #     plt.savefig(outfile,dpi = 300)
-    #     plt.close()
-    #
-    # # #--------------plotting sim xsec-----------
-    # # os.mkdir(directory_name+"/SIM")
-    # #
-    # # for key in CommonIsoKey:
-    # #     print(key)
-    # #     outfile = directory_name+'/SIM/'+key+'.png'
-    # #     plt.figure()
-    # #     plt.plot(rpPACEData[key][0],rpPACEData[key][1],label='PACE4',marker = 'v', color = 'green',linestyle = 'None')
-    # #     plt.plot(rpTalysData[key][0],rpTalysData[key][1],label='Talys',marker = '8',color = 'orange',linestyle = 'None')
-    # #     plt.legend()
-    # #     plt.xlabel("Energy [MeV]")
-    # #     plt.ylabel("Cross Section [mb]")
-    # #     plt.xlim((10,150))
-    # #     plt.yscale('log')
-    # #     #plt.show()
-    # #     plt.savefig(outfile,dpi = 300)
-    # #     plt.close()
+
 
 
 if __name__ == '__main__':
