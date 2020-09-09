@@ -25,7 +25,7 @@ def get_parser():
 
     args = parser.parse_args()
 
-    return args, parser
+    return args
 
 
 def level_scheme(nuc=None, nucleons=None, protons=None, filename=None):
@@ -68,7 +68,7 @@ def list_levels(nuc=None, nucleons=None, protons=None):
 def main():
 
         #-----Getting parser-----#
-        args, parser = get_parser()
+        args = get_parser()
 
         try:
             os.mkdir(args.Outfolder)
