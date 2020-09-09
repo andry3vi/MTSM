@@ -17,6 +17,11 @@ def get_parser():
                         type=str,
                         help='output folder')
 
+    parser.add_argument('-e',
+                        dest='Energy',
+                        type=str,
+                        help='Production Energy')
+
     parser.add_argument('-i',
                         dest='Infile',
                         type=str,
@@ -64,11 +69,33 @@ def list_levels(nuc=None, nucleons=None, protons=None):
         Lambda.append(hl)
     return  E, M, Lambda
 
+def data_extractor(folder, energy):
+
+    data = []
+    with open(folder) as infile:
+
+        cycleflag = False
+        for line in infile:
+            if (cycleflag and ('#' in line) ): break
+            if cycleflag :
+                 linesplit = line.split()
+                 data.append([linesplit[0],linesplit[1]])
+            if '# Energy -> {:03d} \n'.format(int(energy)) == line : cycleflag = True
+
+    return data
 
 def main():
 
         #-----Getting parser-----#
         args, parser = get_parser()
+        cutoff = 1 #mb
+        ProducedIsotopes = []
+
+        if args.Energy is not None:
+            ProducedIsotopes = data_extractor(args.Infile,args.Energy)
+        else:
+            print(colored('ERROR :', 'red'), ' Energy not provided')
+            raise SystemExit
 
         try:
             os.mkdir(args.Outfolder)
@@ -81,21 +108,26 @@ def main():
 
         mdFile = MdUtils(file_name=args.Outfolder+'/Resume', title='ENSDF Resume')
 
+        for Isotope in ProducedIsotopes :
+            if float(Isotope[0]) > cutoff :
+                proton = int(Isotope[1][0:3])
+                nucleon = int(Isotope[1][3:6])
+                level_scheme(nucleons=nucleon, protons=proton, filename=args.Outfolder+'/Images/'+Isotope[1]+'.png')
+
+                El = element(proton)
+                title = str(nucleon)+El.symbol
+                mdFile.new_header(3, title)
+                mdFile.new_line("Element "+title+" production cross section -> "+Isotope[0]+" mb")
+                E, M, HL= list_levels(nucleons=nucleon, protons=proton)
+                list_of_levels = ["Energy", "Jπ", "λ"]
+                for index in range(len(E)):
+                    list_of_levels.extend([f"{E[index]}", f"{M[index]}", HL[index]])
+
+                mdFile.new_line()
+                mdFile.new_table(columns=3, rows=len(E)+1, text=list_of_levels, text_align='left')
+                mdFile.new_line(mdFile.new_inline_image(text=title, path='Images/'+Isotope[1]+'.png'))
 
 
-        level_scheme(nucleons=214, protons=83, filename=args.Outfolder+'/Images/083214.png')
-
-        mdFile.new_header(3, "Inline Images")
-
-        mdFile.new_line(mdFile.new_inline_image(text='test', path='Images/083214.png'))
-
-        E, M, HL= list_levels(nucleons=214, protons=83)
-        list_of_levels = ["Energy", "Jπ", "λ"]
-        for index in range(len(E)):
-            list_of_levels.extend([f"{E[index]}", f"{M[index]}", HL[index]])
-
-        mdFile.new_line()
-        mdFile.new_table(columns=3, rows=len(E)+1, text=list_of_levels, text_align='left')
 
         mdFile.create_md_file()
 
