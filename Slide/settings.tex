@@ -1,0 +1,63 @@
+%
+%Setting file
+%
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+
+\usepackage[english]{babel}
+
+\usepackage{graphicx}
+\graphicspath{{images/}}
+\usepackage{float}
+\usepackage{tikz}
+\usepackage{caption}
+\usepackage{subcaption}
+
+\usetheme{Ilmenau}
+\usecolortheme{lily}
+\usefonttheme{structurebold}
+
+\setbeamertemplate{itemize items}[circle]
+
+\setbeamertemplate{title page}
+{
+  \begin{centering}
+     {\usebeamercolor[fg]{titlegraphic}\center\inserttitlegraphic\par}
+    \begin{beamercolorbox}[sep=15pt,center]{institute}
+      \usebeamerfont{institute}\insertinstitute
+    \end{beamercolorbox}
+    \begin{beamercolorbox}[sep=5pt,center,rounded=true]{title}
+      \usebeamerfont{title}\inserttitle\par%
+      \ifx\insertsubtitle\@empty%
+      \else%
+        \vskip0.25em%
+        {\usebeamerfont{subtitle}\usebeamercolor[fg]{subtitle}\insertsubtitle\par}%
+      \fi%     
+    \end{beamercolorbox}%
+    \begin{beamercolorbox}[sep=20pt,center]{author}
+      \usebeamerfont{author}\insertauthor
+    \end{beamercolorbox}
+   \end{centering}
+  \vfill
+}
+
+\setbeamertemplate{frametitle}
+{
+    \nointerlineskip
+    \begin{beamercolorbox}[sep=0.35cm,ht=2em,wd=\paperwidth]{frametitle}
+		    
+        \centering
+        \insertframetitle
+    \end{beamercolorbox}
+}
+
+
+\addtobeamertemplate{frametitle}{}{%
+\begin{tikzpicture}[remember picture,overlay]
+\node[anchor=north west,yshift=-22pt,xshift=-2pt] at (current page.north west) {\includegraphics[height=.09\textheight]{jy-suomi-keskitetty-aariviiva.eps}};
+\end{tikzpicture}}
+
+
+\beamertemplatenavigationsymbolsempty
+\setbeamercovered{transparent}
