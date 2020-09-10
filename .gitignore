@@ -8,6 +8,7 @@ bin/
 *.d
 *.so
 *.swp
+__pychache__
 
 ## Core latex/pdflatex auxiliary files:
 *.aux
