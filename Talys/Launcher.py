@@ -52,7 +52,8 @@ def main():
         SlaveShell.append(Screen(name,True))
         #SlaveShell[j].enable_logs()
         SlaveShell[j].send_commands('cd '+ FolderCMD + ' ; python Slave.py -id '+ name)
-
+    
+    os.system('screen -r Master')
 
 if __name__ == '__main__':
     main()
