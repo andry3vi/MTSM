@@ -319,7 +319,8 @@ def menu():
                 'Enter 4 for plotting Simulated production Cross Sections CODE separated\n'
                 'Enter 5 for plotting Recoil spectra\n'
                 'Enter 6 for sorting production cross section\n'
-                'Enter 7 to exit : ')
+                'Enter 7 for Talys dedicated plot\n'
+                'Enter 8 to exit : ')
         choice = input(strs)
         return int(choice)
 
@@ -873,6 +874,7 @@ def main():
 
             if args.Talysfolder is not None:
                 IsoKey = keysorter(rpTalysData)
+                
 
             else:
                 print(colored('ERROR :', 'red'), ' Talys Data not provided')
@@ -900,9 +902,79 @@ def main():
                     for i in range(len(sort[0])):
                         file.write(str(sort[0][i])+' '+str(sort[1][i]+'\n'))
 
-
-
         elif choice == 7:
+            clear()
+            print(ascii_banner)
+
+            IsoKey = []
+            
+            if args.Talysfolder is not None:
+                tmpKey = keysorter(rpTalysData)
+                CN = ''
+                while True:
+                    CN = input('Insert CN [ZZZAAA] : ')
+                    if (len(CN) == 6): break
+                    print(colored('WARNING :', 'yellow')," Wrong CN format")
+                for key in tmpKey:
+                    if key[0:3] == CN[0:3]: IsoKey.append(key)
+            else:
+                print(colored('ERROR :', 'red'), ' Talys Data not provided')
+                raise SystemExit
+
+            try:
+                os.mkdir(args.Outfolder+'/TALYSPLOT/')
+            except:
+                print(colored('WARNING :', 'yellow'),"TALYSPLOT folder already exist. Content will be deleted")
+            finally:
+                os.system('rm -r '+args.Outfolder+'/TALYSPLOT/')
+                os.mkdir(args.Outfolder+'/TALYSPLOT/')
+
+            
+            print('------Plotting Talys production spectra for neutron evaporated residual')
+            plt.figure()
+            outfile = args.Outfolder+'/TALYSPLOT/XsecVsE.png'
+            Title = 'Neutron Evaporated Residual'
+            plt.title(Title)
+            plt.xlabel("Energy [MeV]")
+            plt.ylabel("Cross Section [mb]")
+            for key in IsoKey:
+                X, Y = listsorter(rpTalysData[key][0], rpTalysData[key][1])
+                El = element(int(key[0:3]))
+                label = key[3:6]+El.symbol+' '+str(int(CN[3:6])-int(key[3:6]))+' neutron evaporated'
+                plt.plot(X,Y,label=label,marker = 'o', ms = 3 )#,linestyle = 'None')
+
+                #plt.hist(X1, bins=X1, weights=Y1, label=label, density = True)
+
+            plt.yscale('log')
+            plt.legend()
+            plt.show()
+            
+            plt.savefig(outfile,dpi = 300)
+            plt.close()
+            
+            print('------Plotting Talys production spectra for neutron evaporated residual')
+            plt.figure()
+            outfile = args.Outfolder+'/TALYSPLOT/XsecVsA.png'
+            Title = 'Neutron evaporated residual'
+            plt.title(Title)
+            plt.xlabel("Energy [MeV]")
+            plt.ylabel("Cross Section [mb]")
+            for key in IsoKey:
+                X, Y = listsorter(rpTalysData[key][0], rpTalysData[key][1])
+                El = element(int(key[0:3]))
+                label = key[3:6]+El.symbol+' '+str(int(CN[3:6])-int(key[3:6]))+' neutron evaporated'
+                plt.plot(X,Y,label=label,marker = 'o', ms = 3 )#,linestyle = 'None')
+
+                #plt.hist(X1, bins=X1, weights=Y1, label=label, density = True)
+
+                
+                #plt.show()
+            plt.yscale('log')
+            plt.legend()
+            plt.savefig(outfile,dpi = 300)
+            plt.close()
+
+        elif choice == 8:
             clear()
             break
 
