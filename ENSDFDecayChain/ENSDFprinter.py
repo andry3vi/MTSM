@@ -2,7 +2,7 @@ import os
 from mdutils.mdutils import MdUtils
 import argparse
 import matplotlib.pyplot as plt
-from nudel import Nuclide
+from nudel import Nuclide as nucl
 from mendeleev import element
 from termcolor import colored
 from tqdm import tqdm
@@ -38,6 +38,12 @@ def get_parser():
                         dest='Infile',
                         type=str,
                         help='input file')
+    
+    parser.add_argument('-level',
+                        dest='Levels',
+                        type=bool,
+                        default=False,
+                        help='Activate decay level summary')
 
 
     args = parser.parse_args()
@@ -102,7 +108,7 @@ data = load_xml_nuclear_table("nubase16.xml", [120,150] ,[80, 95])
 def level_scheme(nuc=None, nucleons=None, protons=None, filename=None):
     decays = []
     if not nuc:
-        nuc = Nuclide(nucleons, protons)
+        nuc = nucl(nucleons, protons)
     for level in nuc.adopted_levels.levels:
         decays.extend(level.decays)
     success = False
@@ -129,13 +135,14 @@ def list_levels(nuc=None, nucleons=None, protons=None):
     M = []
     Lambda = []
     if not nuc:
-        nuc = Nuclide(nucleons, protons)
+        nuc = nucl(nucleons, protons)
     for l in nuc.adopted_levels.levels:
         hl = str(l.half_life)
 
         E.append(l.energy)
         M.append(l.ang_mom)
         Lambda.append(hl)
+
     return  E, M, Lambda
 
 def data_extractor(folder, energy):
@@ -210,7 +217,7 @@ def decayreverse(Z,A,mode):
 def NextProduction(Primary):
     
     Secondary = []
-    longlivedth = 300 # seconds
+    longlivedth = 1800 # seconds
     for iso in Primary:
         nextZ, nextA = decaydirect(iso['Z'],iso['A'],iso['Dmode'])
         
@@ -265,9 +272,9 @@ def main():
     Second = NextProduction(Primary)
     Third = NextProduction(Second)
 
-    print(Primary)
-    print(Second)
-    print(Third)
+    # print(Primary)
+    # print(Second)
+    # print(Third)
     
     mdFile = MdUtils(file_name=args.Outfolder+'/Resume', title='ENSDF Resume')
     blacklist = []
@@ -276,7 +283,7 @@ def main():
         E = []
         M = []
         HL = []
-        flag = True
+        flag = args.Levels
         levelflag = True
         nucleon = iso['A']
         proton = iso['Z']
@@ -290,7 +297,7 @@ def main():
         title = str(nucleon)+El.symbol
         blacklist.append(title)
         mdFile.new_header(3, title)
-        mdFile.new_line("Element "+title+"Direct production cross section -> "+str(iso['Xsec'])+" mb")
+        mdFile.new_line("Element "+title+" direct production cross section -> "+str(iso['Xsec'])+" mb")
         x = checkisopresence(iso['Z'], iso['A'], Second)
         y = checkisopresence(iso['Z'], iso['A'], Third)
                    
@@ -298,14 +305,14 @@ def main():
             Z, A = decayreverse(Second[x]['Z'],Second[x]['A'],Second[x]['Prev'])
             El2 = element(Z)
             title2 = str(A)+El2.symbol
-            mdFile.new_line("Second genertion production cross section -> "+str(Second[x]['Xsec'])+" mb")
+            mdFile.new_line("Second generation production cross section -> "+str(Second[x]['Xsec'])+" mb")
             mdFile.new_line("Coming from "+Second[x]['Prev']+" decay of "+title2)
 
         if y != -1:
             Z, A = decayreverse(Third[y]['Z'],Third[y]['A'],Third[y]['Prev'])
             El2 = element(Z)
             title2 = str(A)+El2.symbol
-            mdFile.new_line("Third genertion production cross section -> "+str(Third[y]['Xsec'])+" mb")
+            mdFile.new_line("Third generation production cross section -> "+str(Third[y]['Xsec'])+" mb")
             mdFile.new_line("Coming from "+Third[y]['Prev']+" decay of "+title2)
         
                         
@@ -324,14 +331,14 @@ def main():
         E = []
         M = []
         HL = []
-        flag = True
+        flag = args.Levels
         levelflag = True
         nucleon = iso['A']
         proton = iso['Z']
         El = element(proton)
         title = str(nucleon)+El.symbol
         if title not in blacklist:
-                
+            blacklist.append(title)
             try:
                 E, M, HL= list_levels(nucleons=nucleon, protons=proton)
                 levelflag = level_scheme(nucleons=nucleon, protons=proton, filename=args.Outfolder+'/Images/'+str(proton)+str(nucleon)+'.png')
@@ -343,7 +350,7 @@ def main():
             Z, A = decayreverse(iso['Z'],iso['A'],iso['Prev'])
             El2 = element(Z)
             title2 = str(A)+El2.symbol
-            mdFile.new_line("Second genertion production cross section -> "+str(iso['Xsec'])+" mb")
+            mdFile.new_line("Second generation production cross section -> "+str(iso['Xsec'])+" mb")
             mdFile.new_line("Coming from "+iso['Prev']+" decay of "+title2)
             
 
@@ -362,14 +369,14 @@ def main():
         E = []
         M = []
         HL = []
-        flag = True
+        flag = args.Levels
         levelflag = True
         nucleon = iso['A']
         proton = iso['Z']
         El = element(proton)
         title = str(nucleon)+El.symbol
         if title not in blacklist:
-                
+            blacklist.append(title)
             try:
                 E, M, HL= list_levels(nucleons=nucleon, protons=proton)
                 levelflag = level_scheme(nucleons=nucleon, protons=proton, filename=args.Outfolder+'/Images/'+str(proton)+str(nucleon)+'.png')
@@ -381,7 +388,7 @@ def main():
             Z, A = decayreverse(iso['Z'],iso['A'],iso['Prev'])
             El2 = element(Z)
             title2 = str(A)+El2.symbol
-            mdFile.new_line("Third genertion production cross section -> "+str(iso['Xsec'])+" mb")
+            mdFile.new_line("Third generation production cross section -> "+str(iso['Xsec'])+" mb")
             mdFile.new_line("Coming from "+iso['Prev']+" decay of "+title2)
             
 
@@ -395,7 +402,17 @@ def main():
                     # if levelflag :
                     #     mdFile.new_line(mdFile.new_inline_image(text=title, path='Images/'+Isotope[1]+'.png'))
 
+    
+    
+    cmdstr = ''
+    for el in blacklist:
+        cmdstr += ' --Produced '+el
+    os.system('python ChartDrawer.py --n 129 148 --z 85 95 nubase16.xml '+args.Outfolder+'/chart.svg '+cmdstr)
+    os.system('inkscape -w 1024 -h 1024 '+args.Outfolder+'/chart.svg --export-filename '+args.Outfolder+'/chart.png')
+    mdFile.new_line(mdFile.new_inline_image(text="Production Nuclide Chart", path=args.Outfolder+'/chart.png'))
     mdFile.create_md_file()
+    os.system('grip -b '+args.Outfolder+"/Resume.md")
+
 
 
 
