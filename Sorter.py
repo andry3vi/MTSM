@@ -887,7 +887,7 @@ def main():
                 os.mkdir(args.Outfolder+'/ISOLIST/')
 
             with open(args.Outfolder+'/ISOLIST/ProductionList.txt','w') as file:
-                for E in range(10,150,5):
+                for E in range(20,150,5):
                     xsec = []
                     isokeys = []
                     for key in IsoKey:
