@@ -224,9 +224,12 @@ def NextProduction(Primary):
         if float(iso['T']) <= longlivedth:
             for nuclide in data:
                 if (nuclide.Z == nextZ) and (nuclide.A == nextA) :
+                    Xsec = 0
+                    if iso['Br'] != '?' : Xsec = iso['Xsec']*float(iso['Br'])/100.0
+                    else : Xsec = iso['Xsec']
                     Secondary.append({'Z': nextZ, 
                                       'A': nextA, 
-                                      'Xsec': iso['Xsec']*float(iso['Br'])/100.0, 
+                                      'Xsec': Xsec , 
                                       'Br': nuclide.decay_modes[0]['value'],
                                       'Dmode': nuclide.decay_modes[0]['mode'],
                                       'T': nuclide.half_life_in_seconds()[0],
@@ -407,12 +410,12 @@ def main():
     cmdstr = ''
     for el in blacklist:
         cmdstr += ' --Produced '+el
-    os.system('python ChartDrawer.py --n 129 148 --z 85 95 nubase16.xml '+args.Outfolder+'/chart.svg '+cmdstr)
-    os.system('inkscape -w 1024 -h 1024 '+args.Outfolder+'/chart.svg --export-filename '+args.Outfolder+'/chart.png')
+    os.system('python ChartDrawer.py --n 129 148 --z 85 97 nubase16.xml '+args.Outfolder+'/chart.svg '+cmdstr)
+    os.system('inkscape '+args.Outfolder+'/chart.svg --export-filename '+args.Outfolder+'/chart.pdf')
     mdFile.new_line(mdFile.new_inline_image(text="Production Nuclide Chart", path=args.Outfolder+'/chart.png'))
     mdFile.create_md_file()
-    os.system('grip -b '+args.Outfolder+"/Resume.md")
-
+    os.system('grip -b '+args.Outfolder+'/Resume.md')
+    os.system('xdg-open '+args.Outfolder+'/chart.pdf')
 
 
 

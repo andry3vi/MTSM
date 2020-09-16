@@ -889,7 +889,7 @@ def main():
                 os.mkdir(args.Outfolder+'/ISOLIST/')
 
             with open(args.Outfolder+'/ISOLIST/ProductionList.txt','w') as file:
-                for E in range(20,150,5):
+                for E in range(30,140,5):
                     xsec = []
                     isokeys = []
                     for key in IsoKey:
@@ -897,6 +897,7 @@ def main():
                             index = rpTalysData[key][0].index(E)
                             xsec.append(rpTalysData[key][1][index])
                             isokeys.append(key)
+                    
                     sort = listsorter(xsec,isokeys)
                     file.write('# Energy -> {:03d} \n'.format(int(E)))
                     for i in range(len(sort[0])):
@@ -930,48 +931,59 @@ def main():
                 os.mkdir(args.Outfolder+'/TALYSPLOT/')
 
             
-            print('------Plotting Talys production spectra for neutron evaporated residual')
+            print('------Plotting Talys production Xsec as a function of E')
             plt.figure()
             outfile = args.Outfolder+'/TALYSPLOT/XsecVsE.png'
-            Title = 'Neutron Evaporated Residual'
+            Title = 'XsecVsE'
             plt.title(Title)
             plt.xlabel("Energy [MeV]")
             plt.ylabel("Cross Section [mb]")
             for key in IsoKey:
-                X, Y = listsorter(rpTalysData[key][0], rpTalysData[key][1])
-                El = element(int(key[0:3]))
-                label = key[3:6]+El.symbol+' '+str(int(CN[3:6])-int(key[3:6]))+' neutron evaporated'
-                plt.plot(X,Y,label=label,marker = 'o', ms = 3 )#,linestyle = 'None')
+                if (int(CN[3:6])-int(key[3:6])) < 10 :
+                    X, Y = listsorter(rpTalysData[key][0], rpTalysData[key][1])
+                    El = element(int(key[0:3]))
+                    label = key[3:6]+El.symbol+'-'+str(int(CN[3:6])-int(key[3:6]))+' n ev.'
+                    plt.plot(X[:-10],Y[:-10],label=label,marker = 'o', ms = 3 )#,linestyle = 'None')
 
-                #plt.hist(X1, bins=X1, weights=Y1, label=label, density = True)
+                    #plt.hist(X1, bins=X1, weights=Y1, label=label, density = True)
 
             plt.yscale('log')
-            plt.legend()
+            plt.legend(loc='lower right', frameon=False)
             plt.show()
-            
             plt.savefig(outfile,dpi = 300)
             plt.close()
             
-            print('------Plotting Talys production spectra for neutron evaporated residual')
+            print('------Plotting Talys production Xsec as a function of A')
+            
+            sortedData = dict()
+            for energy in range(20,100,5):
+                xsec = []
+                A = []
+                for key in IsoKey:
+                    if energy in rpTalysData[key][0]:
+                        index = rpTalysData[key][0].index(energy)
+                        xsec.append(rpTalysData[key][1][index])
+                        A.append(int(key[3:6]))
+                sortedData[energy] = listsorter(A,xsec)
+            
             plt.figure()
             outfile = args.Outfolder+'/TALYSPLOT/XsecVsA.png'
-            Title = 'Neutron evaporated residual'
+            Title = 'XsecVsA'
             plt.title(Title)
-            plt.xlabel("Energy [MeV]")
+            plt.xlabel("A")
             plt.ylabel("Cross Section [mb]")
-            for key in IsoKey:
-                X, Y = listsorter(rpTalysData[key][0], rpTalysData[key][1])
-                El = element(int(key[0:3]))
-                label = key[3:6]+El.symbol+' '+str(int(CN[3:6])-int(key[3:6]))+' neutron evaporated'
-                plt.plot(X,Y,label=label,marker = 'o', ms = 3 )#,linestyle = 'None')
+            for energy in range(45,80,5): 
+                label = str(energy)+' MeV'
+                plt.plot(sortedData[energy][0],sortedData[energy][1],label=label,marker = 'o', ms = 2 )#,linestyle = 'None')
 
                 #plt.hist(X1, bins=X1, weights=Y1, label=label, density = True)
 
                 
                 #plt.show()
             plt.yscale('log')
-            plt.legend()
+            plt.legend(loc='lower right', frameon=False)
             plt.savefig(outfile,dpi = 300)
+            plt.show()
             plt.close()
 
         elif choice == 8:
