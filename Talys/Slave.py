@@ -38,7 +38,7 @@ def main():
     slave.connect("tcp://localhost:8000")
 
     #send connection check
-    slave.send_json({'name' : args.slavename})
+    slave.send_json({'ID' : id})
     msg = slave.recv_json()
     if (msg['status'] == 'connected'):
         print('------------------------------------')
@@ -53,7 +53,7 @@ def main():
     while True:
 
         #unit declared as available
-        slave.send_json({"status" : "available"})
+        slave.send_json({"status" : "available", 'ID' : id})
 
         # Retrieve a task from the manager
         jobs = slave.recv_json()
@@ -79,17 +79,20 @@ def main():
             os.system('rm -r '+directory_name)
             os.mkdir(directory_name)
 
-        os.system('cp input '+directory_name+'/input')
         os.chdir(directory_name)
-
-        inputfile = open("input", "a")
-        inputfile.write('energy '+jobs['status'])
-        inputfile.close()
+        
+        with open('../input','r') as original_input:
+            with open('input', 'w') as new_input:
+                for line in original_input:
+                    new_input.write('energy '+jobs['status'] if 'energy' in line else line)
+        original_input.close()
+        new_input.close()
+        
 
         os.system(TalysCMD+' < input > output')
 
         os.chdir('../')
-        time.sleep(5)
+        time.sleep(10)
 
 
 
